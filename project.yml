@@ -1,0 +1,31 @@
+name: MLBBPulse
+options:
+  bundleIdPrefix: app.mlbbpulse
+  deploymentTarget:
+    iOS: "17.0"
+targets:
+  MLBBPulse:
+    type: application
+    platform: iOS
+    sources:
+      - Sources
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: app.mlbbpulse.ios
+        PRODUCT_NAME: "MLBB Pulse"
+        SWIFT_VERSION: "5.0"
+        GENERATE_INFOPLIST_FILE: YES
+        INFOPLIST_KEY_CFBundleDisplayName: "MLBB Pulse"
+        TARGETED_DEVICE_FAMILY: "1"
+  MLBBPulseTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - Tests
+    dependencies:
+      - target: MLBBPulse
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: app.mlbbpulse.ios.tests
+        SWIFT_VERSION: "5.0"
+        GENERATE_INFOPLIST_FILE: YES
