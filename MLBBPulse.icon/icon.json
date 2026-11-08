@@ -1,0 +1,101 @@
+{
+  "fill-specializations": [
+    {
+      "value": {
+        "solid": "srgb:0.00784,0.03922,0.21569,1.00000"
+      }
+    }
+  ],
+  "groups": [
+    {
+      "name": "Crystal center",
+      "layers": [
+        {
+          "image-name": "03-center.png",
+          "name": "Crystal center",
+          "glass": false,
+          "hidden": false,
+          "opacity": 1,
+          "position": {
+            "scale": 1,
+            "translation-in-points": [
+              0,
+              0
+            ]
+          }
+        }
+      ],
+      "lighting": "combined",
+      "shadow": {
+        "kind": "neutral",
+        "opacity": 0
+      },
+      "specular": false,
+      "translucency": {
+        "enabled": false,
+        "value": 0
+      }
+    },
+    {
+      "name": "Lower facet",
+      "layers": [
+        {
+          "image-name": "02-lower.png",
+          "name": "Lower facet",
+          "glass": false,
+          "hidden": false,
+          "opacity": 1,
+          "position": {
+            "scale": 1,
+            "translation-in-points": [
+              0,
+              0
+            ]
+          }
+        }
+      ],
+      "lighting": "combined",
+      "shadow": {
+        "kind": "neutral",
+        "opacity": 0
+      },
+      "specular": false,
+      "translucency": {
+        "enabled": false,
+        "value": 0
+      }
+    },
+    {
+      "name": "Upper facet",
+      "layers": [
+        {
+          "image-name": "01-upper.png",
+          "name": "Upper facet",
+          "glass": false,
+          "hidden": false,
+          "opacity": 1,
+          "position": {
+            "scale": 1,
+            "translation-in-points": [
+              0,
+              0
+            ]
+          }
+        }
+      ],
+      "lighting": "combined",
+      "shadow": {
+        "kind": "neutral",
+        "opacity": 0
+      },
+      "specular": false,
+      "translucency": {
+        "enabled": false,
+        "value": 0
+      }
+    }
+  ],
+  "supported-platforms": {
+    "squares": "shared"
+  }
+}
