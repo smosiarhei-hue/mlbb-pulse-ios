@@ -11,15 +11,28 @@ permissions:
 
 jobs:
   build-and-test:
-    runs-on: macos-15
+    runs-on: xcode-27
     steps:
       - name: Check out source
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
       - name: Install XcodeGen
         run: brew install xcodegen
       - name: Generate Xcode project
-        run: xcodegen generate
+        run: python3 scripts/materialize_icon.py && xcodegen generate
       - name: Build for iOS Simulator
         run: xcodebuild -project MLBBPulse.xcodeproj -scheme MLBBPulse -destination 'generic/platform=iOS Simulator' CODE_SIGNING_ALLOWED=NO build
+      - name: Select available iPhone simulator
+        id: simulator
+        run: |
+          set -euo pipefail
+          xcrun simctl list devices available -j > "$RUNNER_TEMP/mlbb-simulators.json"
+          python3 - <<'PYCODE'
+          import json, os, sys
+          with open(os.environ['RUNNER_TEMP']+'/mlbb-simulators.json') as f: data=json.load(f)
+          devices=[d for runtime, items in sorted(data['devices'].items(),reverse=True) if 'SimRuntime.iOS-' in runtime for d in items if d.get('isAvailable') and d.get('name','').startswith('iPhone')]
+          if not devices: raise SystemExit('No available iPhone simulator on this runner.')
+          with open(os.environ['GITHUB_OUTPUT'],'a') as f: f.write('udid='+devices[0]['udid']+'\n')
+          print('Selected simulator:',devices[0]['name'])
+          PYCODE
       - name: Run unit tests
-        run: xcodebuild -project MLBBPulse.xcodeproj -scheme MLBBPulse -destination 'platform=iOS Simulator,name=iPhone 16' CODE_SIGNING_ALLOWED=NO test
+        run: xcodebuild -project MLBBPulse.xcodeproj -scheme MLBBPulse -destination 'platform=iOS Simulator,id=${{ steps.simulator.outputs.udid }}' CODE_SIGNING_ALLOWED=NO test
