@@ -150,12 +150,14 @@ private struct AddServerView: View {
     var body: some View {
         NavigationStack {
             Form {
-                Section("IKEv2 · EAP") {
+                Section {
                     TextField("Название, например город", text: $name)
                     TextField("Адрес сервера", text: $address).textInputAutocapitalization(.never).autocorrectionDisabled()
                     TextField("Remote ID (имя сертификата)", text: $remoteID).textInputAutocapitalization(.never).autocorrectionDisabled()
                     TextField("Логин", text: $username).textInputAutocapitalization(.never).autocorrectionDisabled()
                     SecureField("Пароль", text: $password)
+                } header: {
+                    Text("IKEv2 · EAP")
                 } footer: {
                     Text("Пароль хранится в Keychain на этом устройстве. Сервер и сертификат должны поддерживать IKEv2 с EAP. VPN запросит системное разрешение.")
                 }
