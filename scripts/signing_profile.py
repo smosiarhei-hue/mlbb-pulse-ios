@@ -11,8 +11,6 @@ class ProfileError(ValueError):
 def validate(profile, bundle):
     if not re.fullmatch(r'[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)+', bundle):
         raise ProfileError('Set a valid MLBB_BUNDLE_ID repository variable.')
-    if bundle.lower() in {'com.smoze.sonivo', 'app.hare5681.lyra4838'}:
-        raise ProfileError('The selected ID belongs to the other app or its previous OTA configuration.')
     team_ids = profile.get('TeamIdentifier', [])
     if len(team_ids) != 1 or not re.fullmatch(r'[A-Z0-9]{10}', team_ids[0]):
         raise ProfileError('Profile must have one valid Apple Team ID.')

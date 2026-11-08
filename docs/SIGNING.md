@@ -6,7 +6,7 @@ Workflow `.github/workflows/build-signed-ipa.yml` собирает архив т
 
 ## Настройки в репозитории MLBB Pulse
 
-В Settings → Secrets and variables → Actions задайте repository variable `MLBB_BUNDLE_ID` — новый уникальный App ID, созданный в вашей Apple Developer Team для MLBB Pulse. Он должен отличаться от ID другого приложения. Используйте только профиль, выпущенный для этого ID, с Personal VPN capability и зарегистрированным iPhone. Автоматическая подмена ID под чужой профиль не производится.
+В Settings → Secrets and variables → Actions задайте repository variable `MLBB_BUNDLE_ID` — Bundle ID приложения, соответствующий App ID в provisioning profile. Используйте профиль с Personal VPN capability и зарегистрированным iPhone. Установка с тем же Bundle ID, что у другого приложения на устройстве, может обновить или заменить его либо завершиться ошибкой.
 
 Задайте repository secrets (или организационные secrets, доступные этому репозиторию):
 

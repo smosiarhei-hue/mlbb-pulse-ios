@@ -17,6 +17,9 @@ class ReleaseTests(unittest.TestCase):
  def test_profile_valid_and_mismatch(self):
   self.assertEqual(profile.validate(self.profile(),'com.example.pulse')[2],'release-testing')
   with self.assertRaises(profile.ProfileError): profile.validate(self.profile(),'com.example.other')
+ def test_profile_id_may_be_reused_when_matching(self):
+  p=self.profile();p['Entitlements']['application-identifier']='ABCDE12345.app.hare5681.lyra4838'
+  self.assertEqual(profile.validate(p,'app.hare5681.lyra4838')[2],'release-testing')
  def test_vpn_and_devices_required(self):
   p=self.profile();p['Entitlements'].pop('com.apple.developer.networking.vpn.api')
   with self.assertRaises(profile.ProfileError): profile.validate(p,'com.example.pulse')
