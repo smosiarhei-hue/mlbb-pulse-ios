@@ -1,9 +1,10 @@
 name: iOS CI
 
 on:
+  workflow_dispatch:
   pull_request:
   push:
-    branches: [main]
+    branches: [main, feature/modern-mlbb-pulse-home]
 
 permissions:
   contents: read
