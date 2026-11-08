@@ -1,14 +1,25 @@
 import Foundation
 
-struct Server: Identifiable, Equatable {
-    let id: String
-    let country: String
-    let city: String
-    let label: String
-    let isDemo: Bool
+/// Only public connection metadata is persisted here. The password lives in Keychain.
+struct Server: Identifiable, Codable, Equatable {
+    let id: UUID
+    var name: String
+    var address: String
+    var remoteID: String
+    var username: String
 
-    static let demoCatalog: [Server] = [
-        Server(id: "demo-asia-1", country: "Азия", city: "Демо-город", label: "Демо-сервер 01", isDemo: true),
-        Server(id: "demo-eu-1", country: "Европа", city: "Демо-город", label: "Демо-сервер 02", isDemo: true)
-    ]
+    init(id: UUID = UUID(), name: String, address: String, remoteID: String, username: String) {
+        self.id = id
+        self.name = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        self.address = address.trimmingCharacters(in: .whitespacesAndNewlines)
+        self.remoteID = remoteID.trimmingCharacters(in: .whitespacesAndNewlines)
+        self.username = username.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    var isValid: Bool {
+        !name.isEmpty && !address.isEmpty && !remoteID.isEmpty && !username.isEmpty &&
+        !address.contains("://") && !address.contains("/") &&
+        !address.contains(where: { $0.isWhitespace }) &&
+        !remoteID.contains(where: { $0.isWhitespace })
+    }
 }

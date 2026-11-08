@@ -1,144 +1,176 @@
 import SwiftUI
+import NetworkExtension
 
 struct ContentView: View {
-    @State private var selectedServer = Server.demoCatalog[0]
-    @State private var showingNotice = false
+    @StateObject private var vpn = VPNController()
+    @State private var servers: [Server] = []
+    @State private var selectedID: UUID?
+    @State private var showingAdd = false
+    @State private var probeURL = ""
+    @State private var probeResult = "Проверка не выполнялась"
+    @State private var probing = false
+    @State private var showError = false
+    @State private var localError = ""
 
-    private let background = Color(red: 0.035, green: 0.055, blue: 0.11)
-    private let accent = Color(red: 0.30, green: 0.91, blue: 0.77)
+    private var selected: Server? { servers.first { $0.id == selectedID } }
 
     var body: some View {
         NavigationStack {
-            ScrollView {
-                VStack(alignment: .leading, spacing: 22) {
-                    header
-                    statusCard
-                    serverSection
-                    diagnosticsSection
-                    disclaimer
-                }
-                .padding(20)
-            }
-            .background(background.ignoresSafeArea())
-            .toolbar(.hidden, for: .navigationBar)
-            .alert("Пока только прототип", isPresented: $showingNotice) {
-                Button("Понятно", role: .cancel) { }
-            } message: {
-                Text("Нужны официальный API каталога и проверенная схема маршрутизации. Сейчас выбран только демо-элемент — VPN не подключён.")
-            }
-        }
-        .tint(accent)
-        .preferredColorScheme(.dark)
-    }
-
-    private var header: some View {
-        VStack(alignment: .leading, spacing: 7) {
-            HStack(spacing: 8) {
-                Image(systemName: "waveform.path")
-                    .font(.system(size: 22, weight: .bold))
-                    .foregroundStyle(accent)
-                Text("MLBB")
-                    .font(.system(size: 14, weight: .heavy, design: .rounded))
-                    .tracking(2)
-                    .foregroundStyle(.white.opacity(0.72))
-            }
-            Text("Pulse")
-                .font(.system(size: 38, weight: .bold, design: .rounded))
-                .foregroundStyle(.white)
-            Text("Выбор региона и честная диагностика")
-                .font(.subheadline)
-                .foregroundStyle(.white.opacity(0.62))
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(.top, 18)
-    }
-
-    private var statusCard: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            Label("Состояние подключения", systemImage: "dot.radiowaves.left.and.right")
-                .font(.headline)
-                .foregroundStyle(.white)
-            statusRow("Выбранный пункт", value: selectedServer.label, symbol: "checkmark.circle.fill", color: accent)
-            statusRow("VPN-туннель", value: "Не подключён", symbol: "lock.slash", color: .orange)
-            statusRow("Регион выхода", value: "Не проверен", symbol: "location.slash", color: .orange)
-        }
-        .padding(18)
-        .background(.white.opacity(0.07), in: RoundedRectangle(cornerRadius: 22))
-        .overlay(RoundedRectangle(cornerRadius: 22).stroke(.white.opacity(0.08)))
-    }
-
-    private var serverSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack {
-                Text("Серверы").font(.title3.bold()).foregroundStyle(.white)
-                Spacer()
-                Text("ДЕМО")
-                    .font(.caption2.bold()).tracking(1).foregroundStyle(.black)
-                    .padding(.horizontal, 9).padding(.vertical, 5)
-                    .background(accent, in: Capsule())
-            }
-            Text("Это макет списка, а не реальные узлы Smetargus.")
-                .font(.caption).foregroundStyle(.white.opacity(0.55))
-            ForEach(Server.demoCatalog) { server in
-                Button {
-                    withAnimation(.snappy(duration: 0.22)) { selectedServer = server }
-                } label: {
-                    HStack(spacing: 13) {
-                        Image(systemName: "globe.europe.africa.fill")
-                            .foregroundStyle(accent).frame(width: 38, height: 38)
-                            .background(accent.opacity(0.12), in: RoundedRectangle(cornerRadius: 12))
-                        VStack(alignment: .leading, spacing: 3) {
-                            Text(server.country + " · " + server.city)
-                                .font(.subheadline.weight(.semibold)).foregroundStyle(.white)
-                            Text(server.label + " · не подключается")
-                                .font(.caption).foregroundStyle(.white.opacity(0.55))
-                        }
+            List {
+                Section {
+                    HStack {
+                        Label("VPN", systemImage: "network")
                         Spacer()
-                        if selectedServer == server {
-                            Image(systemName: "checkmark.circle.fill").foregroundStyle(accent)
-                        }
+                        Text(vpn.statusText).foregroundStyle(vpn.status == .connected ? .green : .secondary)
                     }
-                    .padding(13)
-                    .background(.white.opacity(selectedServer == server ? 0.10 : 0.055), in: RoundedRectangle(cornerRadius: 17))
+                    if let address = vpn.configuredAddress, !vpn.canConfigure {
+                        LabeledContent("Адрес конфигурации", value: address)
+                    }
+                    if vpn.canConfigure {
+                        Button("Подключить выбранный сервер") {
+                            if let selected { vpn.connect(selected) }
+                        }.disabled(selected == nil || vpn.busy)
+                    } else {
+                        Button("Отключить VPN", role: .destructive) { vpn.disconnect() }
+                            .disabled(vpn.status == .disconnecting)
+                    }
+                } footer: {
+                    Text("Это VPN устройства, а не только игры. При подключении другой активный VPN может отключиться. Регион выхода и игровой сервер автоматически не подтверждаются.")
                 }
-                .buttonStyle(.plain)
+                Section {
+                    if servers.isEmpty { Text("Добавьте свой IKEv2-сервер.").foregroundStyle(.secondary) }
+                    ForEach(servers) { server in
+                        Button {
+                            selectedID = server.id
+                        } label: {
+                            HStack {
+                                VStack(alignment: .leading) {
+                                    Text(server.name).foregroundStyle(.primary)
+                                    Text(server.address).font(.caption).foregroundStyle(.secondary)
+                                }
+                                Spacer()
+                                if selectedID == server.id { Image(systemName: "checkmark.circle.fill") }
+                            }
+                        }.disabled(!vpn.canConfigure || vpn.busy)
+                    }
+                    .onDelete(perform: deleteServers)
+                    Button("Добавить сервер", systemImage: "plus") { showingAdd = true }
+                        .disabled(!vpn.canConfigure || vpn.busy)
+                } header: { Text("Ваши серверы") } footer: {
+                    Text("Выбор записи ещё не означает подключение. Нужен сервер IKEv2 с EAP-логином и доверенным сертификатом.")
+                }
+                Section("Диагностика HTTPS") {
+                    TextField("https://ваш-тестовый-адрес", text: $probeURL)
+                        .keyboardType(.URL).textInputAutocapitalization(.never).autocorrectionDisabled()
+                    Button(probing ? "Проверка…" : "Проверить доступность") { Task { await probe() } }
+                        .disabled(probing)
+                    Text(probeResult).font(.footnote).foregroundStyle(.secondary)
+                    Text("Время HTTPS-запроса — не игровой ping и не доказательство игрового сервера. Адрес получит запрос с вашего текущего IP.")
+                        .font(.caption).foregroundStyle(.secondary)
+                }
+                Section("Mobile Legends") {
+                    Text("После подключения откройте игру вручную. Достоверный адрес запуска игры не подтверждён.")
+                        .font(.footnote).foregroundStyle(.secondary)
+                }
+            }
+            .navigationTitle("MLBB Pulse")
+            .sheet(isPresented: $showingAdd) {
+                AddServerView { server, password in
+                    do {
+                        try KeychainStore.savePassword(password, for: server.id)
+                        servers.append(server)
+                        selectedID = server.id
+                        persist()
+                        return true
+                    } catch {
+                        localError = error.localizedDescription
+                        showError = true
+                        return false
+                    }
+                }
+            }
+            .alert("Ошибка", isPresented: $showError) { Button("OK", role: .cancel) {} } message: { Text(localError) }
+            .alert("Ошибка VPN", isPresented: Binding(get: { vpn.errorMessage != nil }, set: { if !$0 { vpn.errorMessage = nil } })) {
+                Button("OK", role: .cancel) { vpn.errorMessage = nil }
+            } message: { Text(vpn.errorMessage ?? "") }
+            .onAppear {
+                servers = (try? JSONDecoder().decode([Server].self, from: UserDefaults.standard.data(forKey: "servers.v1") ?? Data())) ?? []
+                if selectedID == nil { selectedID = servers.first?.id }
+                vpn.load()
             }
         }
     }
 
-    private var diagnosticsSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("Диагностика").font(.title3.bold()).foregroundStyle(.white)
-            HStack(alignment: .top, spacing: 12) {
-                Image(systemName: "info.circle.fill").foregroundStyle(accent)
-                Text("Покажем отдельно выбранный сервер, состояние туннеля и подтверждённый регион выхода. Для реальной проверки нужен API/endpoint провайдера; сайт-статус не равен игровому ping.")
-                    .font(.subheadline).foregroundStyle(.white.opacity(0.72))
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-            .padding(16)
-            .background(.white.opacity(0.055), in: RoundedRectangle(cornerRadius: 17))
-            Button { showingNotice = true } label: {
-                Label("Открыть Mobile Legends", systemImage: "arrow.up.right.square")
-                    .font(.subheadline.weight(.semibold)).frame(maxWidth: .infinity)
-                    .padding(.vertical, 15)
-                    .background(accent.opacity(0.17), in: RoundedRectangle(cornerRadius: 15))
-                    .foregroundStyle(accent)
-            }
+    private func persist() { if let data = try? JSONEncoder().encode(servers) { UserDefaults.standard.set(data, forKey: "servers.v1") } }
+
+    private func deleteServers(at offsets: IndexSet) {
+        guard vpn.canConfigure && !vpn.busy else { return }
+        for index in offsets.sorted(by: >) {
+            let server = servers[index]
+            do {
+                try KeychainStore.deletePassword(for: server.id)
+                servers.remove(at: index)
+            } catch { localError = error.localizedDescription; showError = true }
         }
+        if !servers.contains(where: { $0.id == selectedID }) { selectedID = servers.first?.id }
+        persist()
     }
 
-    private var disclaimer: some View {
-        Text("Независимый прототип. Не связан с Moonton или Smetargus. Запуск игры и VPN будут включены только после проверки официальных интерфейсов и правил платформы.")
-            .font(.caption2).foregroundStyle(.white.opacity(0.42)).padding(.top, 4)
-    }
-
-    private func statusRow(_ title: String, value: String, symbol: String, color: Color) -> some View {
-        HStack(spacing: 9) {
-            Image(systemName: symbol).foregroundStyle(color)
-            Text(title).foregroundStyle(.white.opacity(0.65))
-            Spacer(minLength: 6)
-            Text(value).foregroundStyle(.white).multilineTextAlignment(.trailing)
+    @MainActor private func probe() async {
+        guard let url = URL(string: probeURL.trimmingCharacters(in: .whitespacesAndNewlines)),
+              url.scheme?.lowercased() == "https", url.host != nil,
+              url.user == nil, url.password == nil else {
+            probeResult = "Введите корректный HTTPS-адрес без логина и пароля."
+            return
         }
-        .font(.caption.weight(.medium))
+        probing = true
+        defer { probing = false }
+        var request = URLRequest(url: url, cachePolicy: .reloadIgnoringLocalCacheData, timeoutInterval: 10)
+        request.httpMethod = "HEAD"
+        let start = Date()
+        do {
+            let (_, response) = try await URLSession.shared.data(for: request)
+            guard let http = response as? HTTPURLResponse else { probeResult = "Получен не HTTP-ответ."; return }
+            let ms = Int(Date().timeIntervalSince(start) * 1000)
+            probeResult = "HTTPS: HTTP \(http.statusCode), \(ms) мс. Это время запроса, не ping игры."
+        } catch { probeResult = "Проверка не удалась: \(error.localizedDescription)" }
+    }
+}
+
+private struct AddServerView: View {
+    @Environment(\.dismiss) private var dismiss
+    @State private var name = ""
+    @State private var address = ""
+    @State private var remoteID = ""
+    @State private var username = ""
+    @State private var password = ""
+    let save: (Server, String) -> Bool
+
+    private var server: Server { Server(name: name, address: address, remoteID: remoteID, username: username) }
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section {
+                    TextField("Название, например город", text: $name)
+                    TextField("Адрес сервера", text: $address).textInputAutocapitalization(.never).autocorrectionDisabled()
+                    TextField("Remote ID (имя сертификата)", text: $remoteID).textInputAutocapitalization(.never).autocorrectionDisabled()
+                    TextField("Логин", text: $username).textInputAutocapitalization(.never).autocorrectionDisabled()
+                    SecureField("Пароль", text: $password)
+                } header: {
+                    Text("IKEv2 · EAP")
+                } footer: {
+                    Text("Пароль хранится в Keychain на этом устройстве. Сервер и сертификат должны поддерживать IKEv2 с EAP. VPN запросит системное разрешение.")
+                }
+            }
+            .navigationTitle("Новый сервер")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) { Button("Отмена") { dismiss() } }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Добавить") { if save(server, password) { password = ""; dismiss() } }
+                        .disabled(!server.isValid || password.isEmpty)
+                }
+            }
+        }
     }
 }

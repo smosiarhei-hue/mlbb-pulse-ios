@@ -9,14 +9,22 @@ targets:
     platform: iOS
     sources:
       - Sources
+      - path: MLBBPulse.icon
+        type: file
+        buildPhase: resources
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: app.mlbbpulse.ios
-        PRODUCT_NAME: "MLBB Pulse"
+        PRODUCT_NAME: MLBBPulse
+        ASSETCATALOG_COMPILER_APPICON_NAME: MLBBPulse
+        MARKETING_VERSION: "1.0.0"
+        CURRENT_PROJECT_VERSION: "2"
+        PRODUCT_MODULE_NAME: MLBBPulse
         SWIFT_VERSION: "5.0"
         GENERATE_INFOPLIST_FILE: YES
         INFOPLIST_KEY_CFBundleDisplayName: "MLBB Pulse"
         TARGETED_DEVICE_FAMILY: "1"
+        CODE_SIGN_ENTITLEMENTS: MLBBPulse.entitlements
   MLBBPulseTests:
     type: bundle.unit-test
     platform: iOS
@@ -29,3 +37,12 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: app.mlbbpulse.ios.tests
         SWIFT_VERSION: "5.0"
         GENERATE_INFOPLIST_FILE: YES
+schemes:
+  MLBBPulse:
+    build:
+      targets:
+        MLBBPulse: all
+        MLBBPulseTests: [test]
+    test:
+      targets:
+        - MLBBPulseTests

@@ -1,33 +1,26 @@
 # MLBB Pulse
 
-Native SwiftUI starter for an **unofficial** Mobile Legends companion: server selection and transparent diagnostics.
+Неофициальное приложение для подключения к собственным IKEv2 VPN-серверам и сетевой диагностики на iPhone. Это не интеграция со Smetargus и не приложение Moonton.
 
-## Current state
+## Реализовано в коде
 
-- Dark SwiftUI prototype with a demo-only server picker.
-- It separates **selected item**, **VPN tunnel**, and **verified egress region**. Demo data never claims to be a real Smetargus node.
-- No real VPN tunnel, server catalog API, game URL scheme, signing credentials, or App Store release is configured.
-- The public status page's server-side ping is not a measurement from the player's iPhone and is not in-game ping.
+- Добавление нескольких серверов вручную: название, адрес, Remote ID и EAP-логин; пароль — в Keychain этого устройства, не в каталоге и не в репозитории.
+- Настройка, запуск, остановка и системный статус Personal VPN через Network Extension. Требуется работающий IKEv2-сервер с EAP (логин/пароль) и доверенным серверным сертификатом. Не все конфигурации IKEv2 или иные протоколы поддерживаются.
+- HTTPS HEAD-проверка адреса, введённого пользователем, с временем запроса и кодом ответа. Это не игровой ping и не подтверждение выбранного игрового сервера.
 
-## Build
+## Ограничения и незавершённое
 
-Generate the Xcode project with [XcodeGen](https://github.com/yonaskolb/XcodeGen):
+Серверы, каталог, регистрация пользователей, автоматика развёртывания, игровые сетевые правила, подтверждение игрового сервера, проверка региона выхода и автоматический запуск игры не реализованы. Открывайте игру вручную. На обычном iPhone это VPN устройства, а не фильтр только Mobile Legends; другие VPN могут отключаться. VPN не гарантирует выбор игрового сервера, снижение задержки или отсутствие санкций игры.
+
+Нужны сборка на macOS, подпись подходящим профилем с Personal VPN entitlement и проверка на реальном iPhone с реальным сервером. До такой проверки работоспособность VPN не подтверждена. Не используйте профиль другого приложения, если он не подходит Bundle ID и capability. Текущий `app.mlbbpulse.ios` — идентификатор-заготовка: замените его на уникальный App ID вашей Apple-команды и подготовьте совместимый профиль.
+
+## Сборка и тесты
 
 ```sh
 brew install xcodegen
 xcodegen generate
 xcodebuild -project MLBBPulse.xcodeproj -scheme MLBBPulse -destination 'generic/platform=iOS Simulator' CODE_SIGNING_ALLOWED=NO build
+xcodebuild -project MLBBPulse.xcodeproj -scheme MLBBPulse -destination 'platform=iOS Simulator,name=iPhone 16' CODE_SIGNING_ALLOWED=NO test
 ```
 
-GitHub Actions runs simulator build and tests on pull requests and pushes to `main`. Signing and release are intentionally separate.
-
-## Before real service integration
-
-1. Obtain Smetargus's written permission and supported catalog / relay API documentation.
-2. Confirm stable server identifiers, client-safe configuration, and a supported health-check endpoint. Never ship private relay credentials in the app.
-3. Validate routing and region verification on a normal iPhone. iOS per-app VPN generally requires managed-device deployment; don't present destination-IP approximation as app-only filtering.
-4. Confirm an officially supported Mobile Legends launch link; otherwise provide a manual-launch fallback.
-5. Review Apple's Network Extension entitlement and App Review requirements before implementing a tunnel.
-6. Create the production icon with Apple's Icon Composer and verify dark, tinted, and accessibility appearances.
-
-This project is not affiliated with Moonton or Smetargus. Product names belong to their respective owners.
+Симуляторная сборка не доказывает работу VPN на устройстве. Текущий workflow предназначен только для симулятора; подписанный IPA, OTA и Telegram пока не настроены.
