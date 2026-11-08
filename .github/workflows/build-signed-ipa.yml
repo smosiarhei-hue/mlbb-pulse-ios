@@ -26,9 +26,12 @@ jobs:
           MLBB_BUNDLE_ID: ${{ vars.MLBB_BUNDLE_ID }}
         run: |
           set -euo pipefail
-          for key in P12_BASE64 P12_PASSWORD PROFILE_BASE64 MLBB_BUNDLE_ID; do
-            if [ -z "${!key}" ]; then echo "Missing required setting: $key"; exit 1; fi
+          missing=0
+          for pair in P12_BASE64:APPLE_CERT_P12_BASE64 P12_PASSWORD:P12_PASSWORD PROFILE_BASE64:PROVISION_PROFILE_BASE64 MLBB_BUNDLE_ID:MLBB_BUNDLE_ID; do
+            key="${pair%%:*}"; name="${pair#*:}"
+            if [ -z "${!key}" ]; then echo "Missing required setting: $name"; missing=1; fi
           done
+          if [ "$missing" -ne 0 ]; then exit 1; fi
           printf '%s' "$PROFILE_BASE64" | base64 --decode > "$RUNNER_TEMP/mlbb.mobileprovision"
           security cms -D -i "$RUNNER_TEMP/mlbb.mobileprovision" > "$RUNNER_TEMP/mlbb-profile.plist"
           python3 scripts/signing_profile.py "$RUNNER_TEMP/mlbb-profile.plist"
@@ -99,14 +102,64 @@ jobs:
           path: release/MLBBPulse.ipa
           if-no-files-found: error
           retention-days: 14
-      - name: Send to Telegram
-        env:
-          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID || '8559869613' }}
-        run: python3 scripts/send_telegram.py
       - name: Clean up signing materials
         if: always()
         run: |
           security delete-keychain "$RUNNER_TEMP/mlbb-signing.keychain-db" || true
           rm -f "$RUNNER_TEMP/mlbb.p12" "$RUNNER_TEMP/mlbb.mobileprovision" "$RUNNER_TEMP/mlbb-profile.plist"
           if [ -n "${PROFILE_UUID:-}" ]; then rm -f "$HOME/Library/MobileDevice/Provisioning Profiles/$PROFILE_UUID.mobileprovision"; fi
+  deploy-ota:
+    needs: signed-ipa
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    outputs:
+      page_url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@v4
+        with:
+          name: MLBBPulse-signed-ipa
+          path: release
+      - name: Configure Pages
+        id: pages
+        uses: actions/configure-pages@v5
+      - name: Prepare installation page and manifest
+        env:
+          PAGES_BASE_URL: ${{ steps.pages.outputs.base_url }}
+          MLBB_BUNDLE_ID: ${{ vars.MLBB_BUNDLE_ID }}
+        run: python3 scripts/create_ota.py
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+      - name: Publish OTA site
+        id: deployment
+        uses: actions/deploy-pages@v4
+  telegram:
+    needs: [signed-ipa, deploy-ota]
+    if: always() && needs.signed-ipa.result == 'success'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@v4
+        with:
+          name: MLBBPulse-signed-ipa
+          path: release
+      - name: Send IPA and confirmed installation link
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID || '8559869613' }}
+          OTA_PUBLISHED: ${{ needs.deploy-ota.result == 'success' }}
+          OTA_URL: ${{ needs.deploy-ota.outputs.page_url }}
+        run: python3 scripts/send_telegram.py

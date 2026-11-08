@@ -17,7 +17,7 @@ def validate(profile, bundle):
     if len(team_ids) != 1 or not re.fullmatch(r'[A-Z0-9]{10}', team_ids[0]):
         raise ProfileError('Profile must have one valid Apple Team ID.')
     ent = profile.get('Entitlements', {})
-    if not ent.get('application-identifier', '').endswith('.' + bundle):
+    if ent.get('application-identifier', '') != team_ids[0] + '.' + bundle:
         raise ProfileError('Profile does not match MLBB_BUNDLE_ID. Never reuse another app ID.')
     if 'allow-vpn' not in ent.get('com.apple.developer.networking.vpn.api', []):
         raise ProfileError('Profile does not include Personal VPN capability.')

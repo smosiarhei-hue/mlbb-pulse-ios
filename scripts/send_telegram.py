@@ -18,6 +18,13 @@ def prepare(env, ipa):
     if not ipa.is_file() or ipa.stat().st_size == 0: raise ValueError('IPA missing or empty')
     link = f'https://github.com/{repo}/actions/runs/{run}'
     text = f'MLBB Pulse — подписанная сборка\nКоммит: {sha[:7]}\nСборка и артефакт: {link}\nУстановка доступна только на устройствах, разрешённых профилем.'
+    ota = env.get('OTA_URL', '').strip()
+    if ota and env.get('OTA_PUBLISHED') == 'true':
+        from urllib.parse import urlparse
+        parsed = urlparse(ota)
+        if parsed.scheme != 'https' or not parsed.hostname or parsed.username or parsed.password or parsed.query or parsed.fragment:
+            raise ValueError('Invalid OTA installation URL')
+        text += '\nУстановка в Safari: ' + ota
     if ipa.stat().st_size > LIMIT:
         body = json.dumps({'chat_id': chat, 'text': text + '\nIPA больше 50 МБ — скачайте артефакт в GitHub.', 'link_preview_options': {'is_disabled': True}}, ensure_ascii=False).encode()
         return token, 'sendMessage', body, 'application/json; charset=utf-8'

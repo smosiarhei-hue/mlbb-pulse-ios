@@ -13,6 +13,8 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: app.mlbbpulse.ios
         PRODUCT_NAME: MLBBPulse
+        MARKETING_VERSION: "1.0.0"
+        CURRENT_PROJECT_VERSION: "1"
         PRODUCT_MODULE_NAME: MLBBPulse
         SWIFT_VERSION: "5.0"
         GENERATE_INFOPLIST_FILE: YES
